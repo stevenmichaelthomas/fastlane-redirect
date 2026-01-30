@@ -129,6 +129,30 @@ app.get('/closed', (req, res) => {
         }
         .period { margin: 10px 0; }
         .period-name { font-weight: bold; }
+        .direct-links {
+          margin-top: 24px;
+          padding-top: 20px;
+          border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        .direct-links p {
+          font-size: 0.9rem;
+          opacity: 0.8;
+          margin-bottom: 12px;
+        }
+        .btn {
+          display: inline-block;
+          padding: 12px 24px;
+          margin: 6px;
+          background: rgba(255,255,255,0.2);
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 500;
+          transition: background 0.2s;
+        }
+        .btn:hover {
+          background: rgba(255,255,255,0.3);
+        }
       </style>
     </head>
     <body>
@@ -144,6 +168,11 @@ app.get('/closed', (req, res) => {
             <span class="period-name">Lunch</span><br>
             11:30 AM - 1:30 PM
           </div>
+        </div>
+        <div class="direct-links">
+          <p>Need to order anyway?</p>
+          <a href="/breakfast" class="btn">Breakfast</a>
+          <a href="/lunch" class="btn">Lunch</a>
         </div>
       </div>
     </body>

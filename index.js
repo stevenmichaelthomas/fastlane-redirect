@@ -8,28 +8,6 @@ const PORT = process.env.PORT || 3000;
 const BREAKFAST_URL = process.env.BREAKFAST_URL;
 const LUNCH_URL = process.env.LUNCH_URL;
 
-// Time windows (in minutes from midnight)
-const BREAKFAST_START = 8 * 60 + 30;  // 8:30 AM
-const BREAKFAST_END = 9 * 60 + 30;    // 9:30 AM
-const LUNCH_START = 11 * 60 + 30;     // 11:30 AM
-const LUNCH_END = 13 * 60 + 30;       // 1:30 PM
-
-function getTimeInMinutes() {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
-}
-
-function getCurrentMealPeriod() {
-  const timeInMinutes = getTimeInMinutes();
-
-  if (timeInMinutes >= BREAKFAST_START && timeInMinutes < BREAKFAST_END) {
-    return 'breakfast';
-  } else if (timeInMinutes >= LUNCH_START && timeInMinutes < LUNCH_END) {
-    return 'lunch';
-  }
-  return 'closed';
-}
-
 // Direct breakfast redirect (bypasses time check)
 app.get('/breakfast', (req, res) => {
   console.log(`[DIRECT] Breakfast redirect`);
@@ -48,32 +26,74 @@ app.get('/lunch', (req, res) => {
   res.redirect(LUNCH_URL);
 });
 
-// Main fastlane redirect endpoint
+// Main fastlane redirect endpoint - uses CLIENT-SIDE time detection
 app.get('/fastlane', (req, res) => {
-  const period = getCurrentMealPeriod();
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  console.log(`[${new Date().toISOString()}] Fastlane request`);
 
-  console.log(`[${timeStr}] Fastlane request - Period: ${period}`);
+  // Serve a page that checks user's local time and redirects accordingly
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Redirecting...</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 20px;
+        }
+        .container { text-align: center; }
+        .spinner {
+          width: 50px;
+          height: 50px;
+          border: 4px solid rgba(255,255,255,0.3);
+          border-top-color: white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="spinner"></div>
+        <p>Checking menu availability...</p>
+      </div>
+      <script>
+        // Time windows (in minutes from midnight) - LOCAL TIME
+        const BREAKFAST_START = 8 * 60 + 30;  // 8:30 AM
+        const BREAKFAST_END = 9 * 60 + 30;    // 9:30 AM
+        const LUNCH_START = 11 * 60 + 30;     // 11:30 AM
+        const LUNCH_END = 13 * 60 + 30;       // 1:30 PM
 
-  if (period === 'closed') {
-    return res.redirect('/closed');
-  }
+        const now = new Date();
+        const timeInMinutes = now.getHours() * 60 + now.getMinutes();
 
-  let redirectUrl;
-  if (period === 'breakfast') {
-    redirectUrl = BREAKFAST_URL;
-  } else if (period === 'lunch') {
-    redirectUrl = LUNCH_URL;
-  }
+        let redirectUrl;
+        if (timeInMinutes >= BREAKFAST_START && timeInMinutes < BREAKFAST_END) {
+          redirectUrl = ${JSON.stringify(BREAKFAST_URL)};
+        } else if (timeInMinutes >= LUNCH_START && timeInMinutes < LUNCH_END) {
+          redirectUrl = ${JSON.stringify(LUNCH_URL)};
+        } else {
+          redirectUrl = '/closed';
+        }
 
-  if (!redirectUrl) {
-    console.error('URL not configured for period:', period);
-    return res.redirect('/error');
-  }
-
-  console.log(`Redirecting to: ${redirectUrl}`);
-  res.redirect(redirectUrl);
+        // Small delay so user sees the spinner briefly
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 300);
+      </script>
+    </body>
+    </html>
+  `);
 });
 
 // Kitchen closed page
@@ -164,10 +184,9 @@ app.get('/error', (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  const period = getCurrentMealPeriod();
   res.json({
     status: 'ok',
-    currentPeriod: period,
+    serverTime: new Date().toISOString(),
     configured: {
       breakfast: !!BREAKFAST_URL,
       lunch: !!LUNCH_URL
@@ -175,34 +194,111 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Debug endpoint - shows what would happen without redirecting
+// Debug endpoint
 app.get('/debug', (req, res) => {
-  const period = getCurrentMealPeriod();
-  const now = new Date();
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Debug Info</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 40px 20px;
+          background: #f5f5f5;
+        }
+        .card {
+          background: white;
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { margin-bottom: 20px; }
+        h2 { margin-bottom: 12px; font-size: 1.2rem; }
+        .info { margin: 8px 0; }
+        .label { font-weight: bold; color: #666; }
+        .value { font-family: monospace; }
+        .open { color: #4caf50; font-weight: bold; }
+        .closed { color: #f44336; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <h1>Debug Info</h1>
+      <div class="card">
+        <h2>Your Local Time</h2>
+        <div class="info">
+          <span class="label">Time:</span>
+          <span class="value" id="localTime"></span>
+        </div>
+        <div class="info">
+          <span class="label">Timezone:</span>
+          <span class="value" id="timezone"></span>
+        </div>
+        <div class="info">
+          <span class="label">Current Period:</span>
+          <span id="period"></span>
+        </div>
+        <div class="info">
+          <span class="label">Would Redirect To:</span>
+          <span class="value" id="redirectUrl"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Time Windows</h2>
+        <div class="info">Breakfast: 8:30 AM - 9:30 AM</div>
+        <div class="info">Lunch: 11:30 AM - 1:30 PM</div>
+      </div>
+      <div class="card">
+        <h2>Server Info</h2>
+        <div class="info">
+          <span class="label">Server Time:</span>
+          <span class="value">${new Date().toISOString()}</span>
+        </div>
+      </div>
+      <script>
+        const BREAKFAST_START = 8 * 60 + 30;
+        const BREAKFAST_END = 9 * 60 + 30;
+        const LUNCH_START = 11 * 60 + 30;
+        const LUNCH_END = 13 * 60 + 30;
 
-  let redirectUrl = null;
-  if (period === 'breakfast') {
-    redirectUrl = BREAKFAST_URL;
-  } else if (period === 'lunch') {
-    redirectUrl = LUNCH_URL;
-  }
+        const now = new Date();
+        const timeInMinutes = now.getHours() * 60 + now.getMinutes();
 
-  res.json({
-    currentTime: now.toLocaleTimeString(),
-    timeInMinutes: getTimeInMinutes(),
-    period,
-    redirectUrl,
-    wouldRedirectTo: period === 'closed' ? '/closed' : redirectUrl,
-    timeWindows: {
-      breakfast: { start: '8:30 AM', end: '9:30 AM' },
-      lunch: { start: '11:30 AM', end: '1:30 PM' }
-    }
-  });
+        document.getElementById('localTime').textContent = now.toLocaleTimeString();
+        document.getElementById('timezone').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+        let period, redirectUrl;
+        if (timeInMinutes >= BREAKFAST_START && timeInMinutes < BREAKFAST_END) {
+          period = 'breakfast';
+          redirectUrl = ${JSON.stringify(BREAKFAST_URL)};
+        } else if (timeInMinutes >= LUNCH_START && timeInMinutes < LUNCH_END) {
+          period = 'lunch';
+          redirectUrl = ${JSON.stringify(LUNCH_URL)};
+        } else {
+          period = 'closed';
+          redirectUrl = '/closed';
+        }
+
+        const periodEl = document.getElementById('period');
+        periodEl.textContent = period.charAt(0).toUpperCase() + period.slice(1);
+        periodEl.className = period === 'closed' ? 'closed' : 'open';
+        document.getElementById('redirectUrl').textContent = redirectUrl;
+      </script>
+    </body>
+    </html>
+  `);
 });
 
-// Home page with QR code instructions
+// Home page with live QR code
 app.get('/', (req, res) => {
   const serverUrl = req.protocol + '://' + req.get('host');
+  const fastlaneUrl = `${serverUrl}/fastlane`;
+  // Use QR Server API to generate QR code
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(fastlaneUrl)}`;
 
   res.send(`
     <!DOCTYPE html>
@@ -219,7 +315,7 @@ app.get('/', (req, res) => {
           padding: 40px 20px;
           background: #f5f5f5;
         }
-        h1 { margin-bottom: 20px; }
+        h1 { margin-bottom: 20px; text-align: center; }
         .card {
           background: white;
           border-radius: 12px;
@@ -228,44 +324,92 @@ app.get('/', (req, res) => {
           box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .card h2 { margin-bottom: 12px; font-size: 1.2rem; }
-        code {
-          background: #e8e8e8;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 0.9rem;
+        .qr-container {
+          text-align: center;
+          padding: 20px;
         }
-        .url { word-break: break-all; }
+        .qr-container img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 8px;
+        }
+        .qr-url {
+          margin-top: 16px;
+          padding: 12px;
+          background: #e8e8e8;
+          border-radius: 8px;
+          font-family: monospace;
+          font-size: 0.85rem;
+          word-break: break-all;
+        }
         ul { margin-left: 20px; margin-top: 10px; }
         li { margin: 8px 0; }
+        .status {
+          display: inline-block;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 0.9rem;
+          font-weight: bold;
+        }
+        .status.open { background: #c8e6c9; color: #2e7d32; }
+        .status.closed { background: #ffcdd2; color: #c62828; }
       </style>
     </head>
     <body>
-      <h1>Fastlane Checkout Service</h1>
+      <h1>Fastlane Checkout</h1>
 
-      <div class="card">
-        <h2>QR Code URL</h2>
-        <p>Generate a QR code pointing to:</p>
-        <p class="url"><code>${serverUrl}/fastlane</code></p>
+      <div class="card qr-container">
+        <h2>Scan to Order</h2>
+        <img src="${qrCodeUrl}" alt="QR Code for Fastlane Checkout" width="300" height="300">
+        <div class="qr-url">${fastlaneUrl}</div>
+        <p style="margin-top: 16px; color: #666;">
+          Current status: <span class="status" id="status"></span>
+        </p>
       </div>
 
       <div class="card">
-        <h2>How It Works</h2>
+        <h2>Order Times</h2>
         <ul>
-          <li>Customer scans QR code</li>
-          <li>Server checks time of day</li>
-          <li>Redirects to checkout with correct product</li>
-          <li>Customer pays on their phone</li>
+          <li><strong>Breakfast:</strong> 8:30 AM - 9:30 AM</li>
+          <li><strong>Lunch:</strong> 11:30 AM - 1:30 PM</li>
         </ul>
       </div>
 
       <div class="card">
-        <h2>Useful Links</h2>
+        <h2>Direct Links</h2>
         <ul>
-          <li><a href="/debug">Debug info</a> - See current state</li>
-          <li><a href="/health">Health check</a> - API status</li>
-          <li><a href="/fastlane">Test redirect</a> - Simulate scan</li>
+          <li><a href="/breakfast">Breakfast checkout</a> (bypasses time check)</li>
+          <li><a href="/lunch">Lunch checkout</a> (bypasses time check)</li>
+          <li><a href="/debug">Debug info</a></li>
         </ul>
       </div>
+
+      <script>
+        const BREAKFAST_START = 8 * 60 + 30;
+        const BREAKFAST_END = 9 * 60 + 30;
+        const LUNCH_START = 11 * 60 + 30;
+        const LUNCH_END = 13 * 60 + 30;
+
+        function updateStatus() {
+          const now = new Date();
+          const timeInMinutes = now.getHours() * 60 + now.getMinutes();
+          const statusEl = document.getElementById('status');
+
+          if (timeInMinutes >= BREAKFAST_START && timeInMinutes < BREAKFAST_END) {
+            statusEl.textContent = 'Breakfast Open';
+            statusEl.className = 'status open';
+          } else if (timeInMinutes >= LUNCH_START && timeInMinutes < LUNCH_END) {
+            statusEl.textContent = 'Lunch Open';
+            statusEl.className = 'status open';
+          } else {
+            statusEl.textContent = 'Closed';
+            statusEl.className = 'status closed';
+          }
+        }
+
+        updateStatus();
+        setInterval(updateStatus, 60000); // Update every minute
+      </script>
     </body>
     </html>
   `);
@@ -273,19 +417,9 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`
-╔════════════════════════════════════════════╗
-║     Fastlane Redirect Service Running      ║
-╠════════════════════════════════════════════╣
-║  Local:   http://localhost:${PORT}             ║
-║  QR URL:  http://localhost:${PORT}/fastlane    ║
-╠════════════════════════════════════════════╣
-║  Debug:   http://localhost:${PORT}/debug       ║
-║  Health:  http://localhost:${PORT}/health      ║
-╚════════════════════════════════════════════╝
-
-For external access, use ngrok:
-  npx ngrok http ${PORT}
-
-Then generate QR code for: https://YOUR-NGROK-URL/fastlane
+Fastlane Redirect Service running on port ${PORT}
+- Home/QR:  http://localhost:${PORT}/
+- Fastlane: http://localhost:${PORT}/fastlane
+- Debug:    http://localhost:${PORT}/debug
   `);
 });

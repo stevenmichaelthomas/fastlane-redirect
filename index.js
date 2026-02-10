@@ -1,8 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 
+const path = require('path');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Serve static files (logo, etc.)
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuration - direct ShopCode URLs
 const BREAKFAST_URL = process.env.BREAKFAST_URL;
@@ -45,16 +50,17 @@ app.get('/fastlane', (req, res) => {
           justify-content: center;
           align-items: center;
           min-height: 100vh;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
+          background: black;
+          color: #7FBF3A;
           padding: 20px;
         }
         .container { text-align: center; }
+        .logo { width: 60px; height: auto; margin-bottom: 16px; }
         .spinner {
           width: 50px;
           height: 50px;
-          border: 4px solid rgba(255,255,255,0.3);
-          border-top-color: white;
+          border: 4px solid rgba(127,191,58,0.3);
+          border-top-color: #7FBF3A;
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin: 0 auto 20px;
@@ -64,15 +70,16 @@ app.get('/fastlane', (req, res) => {
     </head>
     <body>
       <div class="container">
+        <img src="/logo.png" alt="HD" class="logo">
         <div class="spinner"></div>
         <p>Checking menu availability...</p>
       </div>
       <script>
         // Time windows (in minutes from midnight) - LOCAL TIME
         const BREAKFAST_START = 8 * 60 + 30;  // 8:30 AM
-        const BREAKFAST_END = 9 * 60 + 45;    // 9:45 AM
-        const LUNCH_START = 11 * 60 + 30;     // 11:30 AM
-        const LUNCH_END = 13 * 60 + 20;       // 1:20 PM
+        const BREAKFAST_END = 10 * 60 + 0;    // 10:00 AM
+        const LUNCH_START = 11 * 60 + 0;     // 11:00 AM
+        const LUNCH_END = 13 * 60 + 30;       // 1:30 PM
 
         const now = new Date();
         const timeInMinutes = now.getHours() * 60 + now.getMinutes();
@@ -103,7 +110,7 @@ app.get('/closed', (req, res) => {
     <html>
     <head>
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Kitchen Closed</title>
+      <title>Payment Closed</title>
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -112,17 +119,18 @@ app.get('/closed', (req, res) => {
           justify-content: center;
           align-items: center;
           min-height: 100vh;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
+          background: black;
+          color: #7FBF3A;
           padding: 20px;
         }
         .container {
           text-align: center;
           max-width: 400px;
         }
+        .logo { width: 60px; height: auto; margin-bottom: 16px; }
         h1 { font-size: 2rem; margin-bottom: 1rem; }
         .times {
-          background: rgba(255,255,255,0.1);
+          background: rgba(127,191,58,0.1);
           border-radius: 12px;
           padding: 20px;
           margin-top: 20px;
@@ -133,16 +141,16 @@ app.get('/closed', (req, res) => {
     </head>
     <body>
       <div class="container">
-        <h1>Kitchen Closed</h1>
-        <p>Orders are available during:</p>
+        <img src="/logo.png" alt="HD" class="logo">
+        <h1>Payment Closed</h1>
         <div class="times">
           <div class="period">
             <span class="period-name">Breakfast</span><br>
-            8:30 AM - 9:45 AM
+            8:30 AM - 10:00 AM
           </div>
           <div class="period">
             <span class="period-name">Lunch</span><br>
-            11:30 AM - 1:20 PM
+            11:00 AM - 1:30 PM
           </div>
         </div>
       </div>
@@ -249,8 +257,8 @@ app.get('/debug', (req, res) => {
       </div>
       <div class="card">
         <h2>Time Windows</h2>
-        <div class="info">Breakfast: 8:30 AM - 9:45 AM</div>
-        <div class="info">Lunch: 11:30 AM - 1:20 PM</div>
+        <div class="info">Breakfast: 8:30 AM - 10:00 AM</div>
+        <div class="info">Lunch: 11:00 AM - 1:30 PM</div>
       </div>
       <div class="card">
         <h2>Server Info</h2>
@@ -261,9 +269,9 @@ app.get('/debug', (req, res) => {
       </div>
       <script>
         const BREAKFAST_START = 8 * 60 + 30;
-        const BREAKFAST_END = 9 * 60 + 45;
-        const LUNCH_START = 11 * 60 + 30;
-        const LUNCH_END = 13 * 60 + 20;
+        const BREAKFAST_END = 10 * 60 + 0;
+        const LUNCH_START = 11 * 60 + 0;
+        const LUNCH_END = 13 * 60 + 30;
 
         const now = new Date();
         const timeInMinutes = now.getHours() * 60 + now.getMinutes();
@@ -370,8 +378,8 @@ app.get('/', (req, res) => {
       <div class="card">
         <h2>Order Times</h2>
         <ul>
-          <li><strong>Breakfast:</strong> 8:30 AM - 9:45 AM</li>
-          <li><strong>Lunch:</strong> 11:30 AM - 1:20 PM</li>
+          <li><strong>Breakfast:</strong> 8:30 AM - 10:00 AM</li>
+          <li><strong>Lunch:</strong> 11:00 AM - 1:30 PM</li>
         </ul>
       </div>
 
@@ -386,9 +394,9 @@ app.get('/', (req, res) => {
 
       <script>
         const BREAKFAST_START = 8 * 60 + 30;
-        const BREAKFAST_END = 9 * 60 + 45;
-        const LUNCH_START = 11 * 60 + 30;
-        const LUNCH_END = 13 * 60 + 20;
+        const BREAKFAST_END = 10 * 60 + 0;
+        const LUNCH_START = 11 * 60 + 0;
+        const LUNCH_END = 13 * 60 + 30;
 
         function updateStatus() {
           const now = new Date();
